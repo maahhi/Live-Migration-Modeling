@@ -51,6 +51,7 @@ wheels/
 *.egg
 
 *.xlsx
-*.dos
+*.ods
 *.csv
 *.pdf
+Dataset/
