@@ -174,7 +174,7 @@ model.fit(X_train, y_train)
 models_list.append((model,"RF"))
 
 #SVR
-model = svm.SVR(kernel='rbf')
+model = svm.SVR(kernel='rbf',C=10)
 model.fit(X_train, y_train)
 models_list.append((model,"SVR"))
 
