@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score, r2_score
 from sklearn.ensemble import RandomForestRegressor
-
 from sklearn.model_selection import learning_curve
+from sklearn import svm
 
 def mean_absolute_percentage_error(y_true, y_pred):
     ## Note: does not handle mix 1d representation
@@ -165,13 +165,18 @@ X = min_max_scaler.fit_transform(X_raw)
 models_list = []
 # linear regression
 regressor = LinearRegression()
-regressor.fit(X_train, y_train) #training the algorithm
+regressor.fit(X_train, y_train) # training the algorithm
 models_list.append((regressor,"regressor"))
 
 # random Forest
 model = RandomForestRegressor(n_estimators=10, max_features=2)
 model.fit(X_train, y_train)
 models_list.append((model,"RF"))
+
+#SVR
+model = svm.SVR(kernel='rbf')
+model.fit(X_train, y_train)
+models_list.append((model,"SVR"))
 
 
 # predict, error and plot loop for all models
@@ -182,9 +187,8 @@ for model_ in models_list:
     EVS = explained_variance_score(y_test, y_pred)
     R2 = r2_score(y_test, y_pred)
     print('model: ',model_[1],'\n MSE ', MSE, '\n MAE ', MAE, '\n EVS ', EVS, '\n R2', R2)
-    plot_learning_curve(model_[0], model_[1], X_train, y_train)
-
-plt.show()
+    #plot_learning_curve(model_[0], model_[1], X_train, y_train)
+    #plt.show()
 
 
 
