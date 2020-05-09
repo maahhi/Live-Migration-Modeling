@@ -8,6 +8,12 @@ from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.model_selection import learning_curve
 
+def mean_absolute_percentage_error(y_true, y_pred):
+    ## Note: does not handle mix 1d representation
+    #if _is_1d(y_true):
+    #    y_true, y_pred = _check_1d_array(y_true, y_pred)
+
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
@@ -154,7 +160,8 @@ min_max_scaler = preprocessing.MinMaxScaler()
 X_train = min_max_scaler.fit_transform(X_train_raw)
 X_test = min_max_scaler.fit_transform(X_test_raw)
 X = min_max_scaler.fit_transform(X_raw)
-#train
+
+# model and train
 regressor = LinearRegression()
 regressor.fit(X_train, y_train) #training the algorithm
 
