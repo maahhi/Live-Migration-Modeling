@@ -162,11 +162,31 @@ X_test = min_max_scaler.fit_transform(X_test_raw)
 X = min_max_scaler.fit_transform(X_raw)
 
 # model and train
+models_list = []
+# linear regression
 regressor = LinearRegression()
 regressor.fit(X_train, y_train) #training the algorithm
+models_list.append((regressor,"regressor"))
 
-#predict
-y_pred = regressor.predict(X_test)
+# random Forest
+model = RandomForestRegressor(n_estimators=10, max_features=2)
+model.fit(X_train, y_train)
+models_list.append((model,"RF"))
+
+
+# predict, error and plot loop for all models
+for model_ in models_list:
+    y_pred = model_[0].predict(X_test)
+    MSE = mean_squared_error(y_test, y_pred)
+    MAE = mean_absolute_error(y_test, y_pred)
+    EVS = explained_variance_score(y_test, y_pred)
+    R2 = r2_score(y_test, y_pred)
+    print('model: ',model_[1],'\n MSE ', MSE, '\n MAE ', MAE, '\n EVS ', EVS, '\n R2', R2)
+    plot_learning_curve(model_[0], model_[1], X_train, y_train)
+
+plt.show()
+
+
 
 '''
 #visualize
@@ -182,32 +202,3 @@ plt.scatter(X_test[:,2], y_test,  color='gray')
 plt.scatter(X_test[:,2], y_pred, color='red', linewidth=2)
 plt.show()
 '''
-
-# error
-MSE = mean_squared_error(y_test, y_pred)
-MAE = mean_absolute_error(y_test, y_pred)
-EVS = explained_variance_score(y_test, y_pred)
-R2 = r2_score(y_test, y_pred)
-print('MSE ', MSE, '\n MAE ', MAE, '\n EVS ', EVS, '\n R2', R2)
-
-
-plot_learning_curve(regressor, "linear", X_train, y_train)
-
-
-
-# another model
-model = RandomForestRegressor(n_estimators=10, max_features=2)
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-
-# error
-MSE = mean_squared_error(y_test, y_pred)
-MAE = mean_absolute_error(y_test, y_pred)
-EVS = explained_variance_score(y_test, y_pred)
-R2 = r2_score(y_test, y_pred)
-print('MSE ',MSE,'\n MAE ',MAE,'\n EVS ',EVS,'\n R2',R2)
-
-plot_learning_curve(model, "RandomForestRegressor", X_train, y_train)
-
-plt.show()
-
