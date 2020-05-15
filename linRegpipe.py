@@ -1,12 +1,17 @@
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression,Ridge
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error,mean_absolute_error, explained_variance_score, r2_score
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import learning_curve
 from sklearn import svm
+from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
 
 def mean_absolute_percentage_error(y_true, y_pred):
     ## Note: does not handle mix 1d representation
@@ -14,6 +19,141 @@ def mean_absolute_percentage_error(y_true, y_pred):
     #    y_true, y_pred = _check_1d_array(y_true, y_pred)
 
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+
+def plot_learning_curve2(X_train,y_train,model_):
+
+    model = model_[0]
+    modelname = model_[1]
+
+    # divide into cross validation and training set
+    #np.random.shuffle(X_train)
+    indicator = int(1*len(X_train)/5)
+    X_cv_set, X_training_set = X_train[:indicator, :], X_train[indicator:, :]
+    y_cv_set, y_training_set = y_train[:indicator, :], y_train[indicator:, :]
+
+    #loop!
+    number_of_samples = [int((i+1)*len(X_training_set)/5) for i in range(5)]
+    #print('number_of_samples',number_of_samples)
+    training_set_error = []
+    cv_set_error = []
+    for sample in number_of_samples:
+        model.fit(X_training_set[:sample, :],y_training_set[:sample, :].ravel())
+        y_pred_train = model.predict(X_training_set[:sample, :])
+        y_pred_cv = model.predict(X_cv_set)
+        training_set_error.append(mean_absolute_error(y_training_set[:sample, :], y_pred_train))
+        cv_set_error.append(mean_absolute_error(y_cv_set, y_pred_cv))
+    #print(number_of_samples,'\n',training_set_error,'\n',cv_set_error)
+    plt.plot(number_of_samples, training_set_error)
+    plt.plot(number_of_samples, cv_set_error)
+    plt.title(modelname)
+
+
+
+df = pd.read_csv('data.csv')
+
+# features and target
+X_fields = ['VM_size','pdr','working_set_pages','wse','nwse','mwpp', #vm fitures
+           'vm_perf_instructions','max-bandwidth',#Source host (SRC_vm_cpu or SRC_vm_cpu_baseline)
+            'SRC_cpu_system','SRC_cpu_user','DST_cpu_system','DST_cpu_user','SRC_net_manage_ifutil','DST_net_manage_ifutil','SRC_vm_mem_baseline',
+            #Src + dest host (not sure about (NET.UTIL)) ---- dst mem utilization not found! what is memory percentage?
+            'non_working_set_pages','RPTR', 'THR_benefit', 'DLTC_benefit', 'ewss', 'enwss'#composed (nwss = non_working_set_pages) , 'DTC_benefit', 'POST_benefit'
+            ]
+y_fields = ['TT']
+
+
+tech_uniq = df.technique.unique()
+df_tech =df.loc[df['technique'] == tech_uniq[8]].copy()
+print(tech_uniq,tech_uniq[8])
+# shuffling and split
+mask = np.random.rand(len(df_tech)) < 0.8
+train = df_tech[mask]
+X_train_raw = train[X_fields].values
+y_train = train[y_fields].values
+test = df_tech[~mask]
+X_test_raw = test[X_fields].values
+y_test = test[y_fields].values.ravel()
+
+X_raw = df_tech[X_fields].values
+y = df_tech[y_fields].values
+
+# normalization
+standard_scaler = StandardScaler()
+X_train =standard_scaler.fit_transform(X_train_raw)
+X_test = standard_scaler.fit_transform(X_test_raw)
+X = standard_scaler.fit_transform(X_raw)
+
+# model and train
+models_list = []
+# linear regression
+regressor = LinearRegression(fit_intercept=True)
+regressor.fit(X_train, y_train.ravel()) # training the algorithm
+models_list.append((regressor,"lin-reg"))
+
+# Ridge regression
+reg = Ridge(fit_intercept=True,alpha=.5)
+reg.fit(X_train, y_train.ravel()) # training the algorithm
+models_list.append((reg,"lin-Ridge"))
+
+
+'''
+# random Forest
+model = RandomForestRegressor(n_estimators=10, max_features=2)
+model.fit(X_train, y_train)
+models_list.append((model,"RF"))
+'''
+'''
+#SVR
+print('svr')
+model = svm.SVR(kernel='rbf',C=10)
+model.fit(X_train, y_train.ravel())
+models_list.append((model,"SVR"))
+'''
+'''
+# MLP
+print('mlp')
+mlp = make_pipeline(StandardScaler(),
+                    MLPRegressor(hidden_layer_sizes=(10,10,10),
+                                 tol=1e-2, max_iter=300, random_state=1))
+mlp.fit(X_train, y_train.ravel())
+models_list.append((mlp,"mlp"))
+'''
+
+# predict, error and plot loop for all models
+for model_ in models_list:
+    print(model_[1])
+    y_pred = model_[0].predict(X_test)
+    print(y_test.shape, y_pred.shape)
+    my_error = sum(abs(y_test-y_pred)/y_test)/y_test.shape[0]
+    MSE = mean_squared_error(y_test, y_pred)
+    MAE = mean_absolute_error(y_test, y_pred)
+    EVS = explained_variance_score(y_test, y_pred)
+    R2 = r2_score(y_test, y_pred)
+    MAPE = mean_absolute_percentage_error(y_test, y_pred)
+    #score = model_[0].score(y_test, y_pred)
+    print('model: ',model_[1],'\n my_error ', my_error,'\n MSE ', MSE, '\n MAE ', MAE, '\n EVS ', EVS, '\n R2', R2, '\n MAPE', MAPE)#, '\n score', score)
+    #plot_learning_curve2(X_train, y_train, model_)
+    #plot_learning_curve(model_[0], model_[1], X_train, y_train)
+    #plt.show()
+
+
+
+'''
+#visualize
+
+df = pd.DataFrame({'Actual': y_test.flatten(), 'Predicted': y_pred.flatten()})
+df1 = df.head(25)
+df1.plot(kind='bar',figsize=(16,10))
+plt.grid(which='major', linestyle='-', linewidth='0.5', color='green')
+plt.grid(which='minor', linestyle=':', linewidth='0.5', color='black')
+plt.show()
+
+plt.scatter(X_test[:,2], y_test,  color='gray')
+plt.scatter(X_test[:,2], y_pred, color='red', linewidth=2)
+plt.show()
+'''
+
+
 
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
@@ -129,80 +269,3 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
 
     return plt
 
-
-df = pd.read_csv('data.csv')
-
-tech_uniq = df.technique.unique()
-df_tech =df.loc[df['technique'] == tech_uniq[0]].copy()
-
-# features and target
-X_fields = ['VM_size','pdr','working_set_pages','wse','nwse','mwpp', #vm fitures
-           'vm_perf_instructions','max-bandwidth','SRC_cpu_system','SRC_cpu_user' ,'SRC_net_manage_ifutil',#Source host
-            'SRC_cpu_system','SRC_cpu_user','DST_cpu_system','DST_cpu_user','SRC_net_manage_ifutil','DST_net_manage_ifutil',#Src + dest host
-            'RPTR', 'THR_benefit', 'DTC_benefit', 'DLTC_benefit', 'POST_benefit', 'ewss', 'enwss'#composed (nwss not found)
-            ]
-y_fields = ['TT']
-
-# shuffling and split
-mask = np.random.rand(len(df_tech)) < 0.8
-train = df_tech[mask]
-X_train_raw = train[X_fields].values
-y_train = train[y_fields].values
-test = df_tech[~mask]
-X_test_raw = test[X_fields].values
-y_test = test[y_fields].values
-
-X_raw = df_tech[X_fields].values
-y = df_tech[y_fields].values
-
-# normalization
-min_max_scaler = preprocessing.MinMaxScaler()
-X_train = min_max_scaler.fit_transform(X_train_raw)
-X_test = min_max_scaler.fit_transform(X_test_raw)
-X = min_max_scaler.fit_transform(X_raw)
-
-# model and train
-models_list = []
-# linear regression
-regressor = LinearRegression()
-regressor.fit(X_train, y_train) # training the algorithm
-models_list.append((regressor,"regressor"))
-
-# random Forest
-model = RandomForestRegressor(n_estimators=10, max_features=2)
-model.fit(X_train, y_train)
-models_list.append((model,"RF"))
-
-#SVR
-model = svm.SVR(kernel='rbf',C=10)
-model.fit(X_train, y_train)
-models_list.append((model,"SVR"))
-
-
-# predict, error and plot loop for all models
-for model_ in models_list:
-    y_pred = model_[0].predict(X_test)
-    MSE = mean_squared_error(y_test, y_pred)
-    MAE = mean_absolute_error(y_test, y_pred)
-    EVS = explained_variance_score(y_test, y_pred)
-    R2 = r2_score(y_test, y_pred)
-    print('model: ',model_[1],'\n MSE ', MSE, '\n MAE ', MAE, '\n EVS ', EVS, '\n R2', R2)
-    #plot_learning_curve(model_[0], model_[1], X_train, y_train)
-    #plt.show()
-
-
-
-'''
-#visualize
-
-df = pd.DataFrame({'Actual': y_test.flatten(), 'Predicted': y_pred.flatten()})
-df1 = df.head(25)
-df1.plot(kind='bar',figsize=(16,10))
-plt.grid(which='major', linestyle='-', linewidth='0.5', color='green')
-plt.grid(which='minor', linestyle=':', linewidth='0.5', color='black')
-plt.show()
-
-plt.scatter(X_test[:,2], y_test,  color='gray')
-plt.scatter(X_test[:,2], y_pred, color='red', linewidth=2)
-plt.show()
-'''
